@@ -1,5 +1,4 @@
 name: Build Source For Release
-
 on:
     release:
         types: [published]
@@ -8,16 +7,88 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node
+
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-        
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Install GTK/WebKit deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Install Go Dependencies
+        run: go mod download
+
+      - name: Build Frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Build Linux Binary
+        run: go build -o dashboard_linux .
+
+      - name: Upload Linux Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard_linux
+          path: dashboard_linux
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Install WebKit deps
+        run: brew install pkg-config gtk+3 webkit2gtk
+
+      - name: Install Go Dependencies
+        run: go mod download
+
+      - name: Build Frontend
+        run: |
+          npm install
+          npm run build
+
+      - name: Build Mac Binary
+        run: go build -o dashboard_mac .
+
+      - name: Upload Mac Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard_mac
+          path: dashboard_mac
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -26,23 +97,16 @@ jobs:
       - name: Install Go Dependencies
         run: go mod download
 
-      - name: Build App
+      - name: Build Frontend
         run: |
           npm install
           npm run build
 
-      - name: Run Go Build Non Windows
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o dashboard_linux .
-          GOOS=darwin GOARCH=amd64 go build -o dashboard_mac .
-          
       - name: Install goversioninfo
         run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
 
-      - name: Add To Path
-        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
       - name: Generate versioninfo.json
+        shell: bash
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
@@ -50,7 +114,6 @@ jobs:
           MINOR=$(echo "$VERSION" | cut -d. -f2)
           PATCH=$(echo "$VERSION" | cut -d. -f3)
           BUILD=${{ github.run_number }}
-
           cat > versioninfo.json << EOF
           {
             "FixedFileInfo": {
@@ -78,19 +141,29 @@ jobs:
             "IconPath": "public/icon.ico"
           }
           EOF
-
       - name: Generate resource file
         run: goversioninfo -icon=public/icon.ico
 
-      - name: Run Go Build Windows
-        run: |
-          GOOS=windows GOARCH=amd64 go build -o dashboard_windows .
+      - name: Build Windows Binary
+        run: go build -o dashboard_windows.exe .
+
+      - name: Upload Windows Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard_windows
+          path: dashboard_windows.exe
+
+  release:
+    needs: [build-linux, build-mac, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dashboard_windows
-            dashboard_linux
-            dashboard_mac
-      
+            dashboard_linux/dashboard_linux
+            dashboard_mac/dashboard_mac
+            dashboard_windows/dashboard_windows.exe
