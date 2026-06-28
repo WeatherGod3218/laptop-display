@@ -8,6 +8,7 @@ type AreaLineProps = {
 export const AreaLine = (props: AreaLineProps) => {
     return (
         <Area
+            isAnimationActive={false}
             yAxisId={`${props.id}`}
             dataKey={`${props.id}`}
             type="natural"

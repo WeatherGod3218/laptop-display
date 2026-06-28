@@ -19,7 +19,8 @@ export const Connected = () => {
         return () => {
             unsubscribeSessionUpdate()
         }
-    })
+    }, [subscribe])
+    
     return (
         <div className="flex flex-row items-center">
             <div className={`w-4 h-4 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}/>

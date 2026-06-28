@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import {AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { AreaLine, } from "./AreaLine"
 import { useWebSocket } from "@/context/SocketContext"
@@ -60,11 +60,9 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-const HOURS = 24
+// const HOURS = 24
+// const SECONDS = 60
 const MINUTES = 60
-const SECONDS = 60
-
-let secondsToSubtract: number = 90 * HOURS * MINUTES * SECONDS
 
 type DataPoint = {
   timestamp: number,
@@ -77,50 +75,38 @@ type DataPoint = {
   voc: number | null,
 }
 
+const timeRangeConfig: Record<string, { seconds: number; label: string }> = {
+  "1m":  { seconds: MINUTES,     label: "1 minute" },
+  "3m":  { seconds: 3 * MINUTES, label: "3 minutes" },
+  "5m":  { seconds: 5 * MINUTES, label: "5 minutes" },
+  "10m": { seconds: 10 * MINUTES, label: "10 minutes" },
+}
+
 export function ChartAreaInteractive() {
 	const [chartData, setChartData] = useState<DataPoint[]>([])
 	const [timeRange, setTimeRange] = useState("5m")
 	const {subscribe} = useWebSocket()
 
-	const now = Math.floor(Date.now() / 1000)
 
-	let tagDisplay = "90 days"
+    const { seconds: secondsToSubtract, label: tagDisplay } = timeRangeConfig[timeRange] ?? { seconds: 5 * MINUTES, label: "5 minutes" }
 
-	const filteredData = chartData.filter((item) => {
-		if (timeRange === "1m") {
-			secondsToSubtract = MINUTES
-			tagDisplay = "1 minute"
-		} else if (timeRange === "3m") {
-			secondsToSubtract = 3 * MINUTES
-			tagDisplay = "3 minutes"
-		} else if (timeRange === "5m") {
-			secondsToSubtract = 5 * MINUTES
-			tagDisplay = "5 minutes"
-		} else if (timeRange === "10m") {
-			secondsToSubtract = 10 * MINUTES
-			tagDisplay = "10 minutes"
-		} else if (timeRange === "30m") {
-			secondsToSubtract = 30 * MINUTES
-			tagDisplay = "30 minutes"
-		} else if (timeRange === "60m") {
-			secondsToSubtract = 60 * MINUTES
-			tagDisplay = "1 hour"
-		}
+	const filteredData = useMemo(() => {
+        const now = Math.floor(Date.now() / 1000)
+        return chartData.filter(item => item.timestamp >= now - secondsToSubtract)
+    }, [chartData, secondsToSubtract])
 
-		return item.timestamp >= now - secondsToSubtract
-	})
 
 	useEffect(() => {
 		const unsubData = subscribe("probe_data", (payload) => {
 			if (payload) {
-				setChartData(prev => [...prev.slice(-5000), payload])
+				setChartData(prev => [...prev.slice(-500), payload])
 			}
 		})
 
 		return () => {
 			unsubData()
 		}
-	})
+	}, [subscribe])
 
     return (
         <Card className="pt-0 h-full w-full flex flex-col"> 

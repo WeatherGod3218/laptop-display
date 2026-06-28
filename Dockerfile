@@ -2,11 +2,17 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
+ARG VITE_DASHBOARD_MODE
+ENV VITE_DASHBOARD_MODE=$VITE_DASHBOARD_MODE
+
+ARG VITE_WS_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+
+COPY web/package*.json ./
 
 RUN npm ci
 
-COPY . .
+COPY web/ .
 
 RUN npm run build
 

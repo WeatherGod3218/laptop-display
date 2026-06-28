@@ -1,10 +1,17 @@
 services:
-  serge-laptop-display:
+  serge-zephyr-display:
     build: 
       context: .
       dockerfile: Dockerfile
-    container_name: SergeLaptopDisplay
+      args:
+        - VITE_DASHBOARD_MODE=${VITE_DASHBOARD_MODE}
+        - VITE_WS_URL=${VITE_WS_URL}
+    container_name: SergeZephyrDisplay
     ports:
       - "8080:8080"
     env_file:
       - .env
+
+networks:
+  serge-external-network:
+    external: true

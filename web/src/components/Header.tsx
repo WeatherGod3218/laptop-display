@@ -1,4 +1,4 @@
-import serge_logo from './../assets/serge_banner.png'
+import serge_logo from '../assets/serge_banner.png'
 import { Connected } from './Connected'
 
 export const Header = () => {
